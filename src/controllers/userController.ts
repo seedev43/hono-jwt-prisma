@@ -1,6 +1,5 @@
 import { Context } from "hono";
 import prisma from "../config/prisma";
-import { compare, hash } from "bcrypt";
 import { sign } from 'hono/jwt'
 import { getRandomNumber } from "../utils/functions";
 
@@ -17,9 +16,7 @@ export const register = async (ctx: Context) => {
     }
 
     try {
-
         // Check for existing email
-
         const emailUser = await prisma.user.findUnique({
             where: { email }
         });
@@ -49,7 +46,9 @@ export const register = async (ctx: Context) => {
                 name: name ?? `User #${getRandomNumber(1, 99)}`,
                 email: email,
                 username: username,
-                password: await hash(password, 12)
+                password: await Bun.password.hash(password, {
+                    algorithm: "bcrypt"
+                })
             }
         })
 
@@ -81,7 +80,6 @@ export const login = async (ctx: Context) => {
 
     try {
 
-
         const user = await prisma.user.findFirst({
             where: {
                 username: username
@@ -94,10 +92,7 @@ export const login = async (ctx: Context) => {
                 message: "user not found"
             }, 404)
         }
-        const passwordIsValid = await compare(
-            password,
-            user.password
-        );
+        const passwordIsValid = await Bun.password.verify(password, user.password);
 
         if (!passwordIsValid) {
             return ctx.json({
